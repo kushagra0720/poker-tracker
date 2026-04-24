@@ -923,12 +923,17 @@ function renderSummary() {
 
   const map = {};
   games.forEach(game => {
+    let bestNet = -Infinity;
+    game.players.forEach(p => {
+      const net = (p.cashOut || 0) - (p.buyIn || 0);
+      if (net > bestNet) bestNet = net;
+    });
     game.players.forEach(p => {
       if (!map[p.name]) map[p.name] = { name: p.name, totalNet: 0, wins: 0, played: 0 };
       const net = (p.cashOut || 0) - (p.buyIn || 0);
       map[p.name].totalNet += net;
       map[p.name].played += 1;
-      if (net > 0) map[p.name].wins += 1;
+      if (net === bestNet) map[p.name].wins += 1;
     });
   });
 
@@ -1102,12 +1107,17 @@ function exportExcel() {
   // Sheet 2: Player Summary / Leaderboard
   const map = {};
   games.forEach(game => {
+    let bestNet = -Infinity;
+    game.players.forEach(p => {
+      const net = (p.cashOut || 0) - (p.buyIn || 0);
+      if (net > bestNet) bestNet = net;
+    });
     game.players.forEach(p => {
       if (!map[p.name]) map[p.name] = { name: p.name, totalNet: 0, wins: 0, played: 0 };
       const net = (p.cashOut || 0) - (p.buyIn || 0);
       map[p.name].totalNet += net;
       map[p.name].played += 1;
-      if (net > 0) map[p.name].wins += 1;
+      if (net === bestNet) map[p.name].wins += 1;
     });
   });
   const summaryData = Object.values(map)
