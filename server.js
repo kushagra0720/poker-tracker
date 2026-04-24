@@ -13,23 +13,26 @@ app.use(express.static(path.join(__dirname, 'public')));
 async function readDB() {
   if (USE_KV) {
     const { kv } = require('@vercel/kv');
-    const games = await kv.get('games');
-    return { games: games || [] };
+    const [games, players] = await Promise.all([kv.get('games'), kv.get('players')]);
+    return { games: games || [], players: players || [] };
   }
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ games: [] }, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({ games: [], players: [] }, null, 2));
   }
   try {
     return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   } catch {
-    return { games: [] };
+    return { games: [], players: [] };
   }
 }
 
 async function writeDB(data) {
   if (USE_KV) {
     const { kv } = require('@vercel/kv');
-    await kv.set('games', data.games);
+    await Promise.all([
+      kv.set('games', data.games),
+      kv.set('players', data.players || [])
+    ]);
     return;
   }
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
@@ -74,6 +77,32 @@ app.delete('/api/games/:id', async (req, res) => {
   db.games.splice(idx, 1);
   await writeDB(db);
   res.json({ ok: true });
+});
+
+app.get('/api/players', async (req, res) => {
+  const db = await readDB();
+  res.json(db.players || []);
+});
+
+app.post('/api/players', async (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  const db = await readDB();
+  if (!db.players) db.players = [];
+  if (!db.players.includes(name)) {
+    db.players.push(name);
+    db.players.sort();
+    await writeDB(db);
+  }
+  res.json(db.players);
+});
+
+app.delete('/api/players/:name', async (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const db = await readDB();
+  db.players = (db.players || []).filter(p => p !== name);
+  await writeDB(db);
+  res.json(db.players);
 });
 
 // Local dev only — Vercel uses the exported app, not app.listen()
