@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poker Tracker</title>
+  <style>
+    :root {
+      --bg: #f4f4f5;
+      --surface: #ffffff;
+      --border: #e4e4e7;
+      --text: #18181b;
+      --muted: #71717a;
+      --accent: #15803d;
+      --accent-dark: #166534;
+      --accent-light: #dcfce7;
+      --positive: #16a34a;
+      --negative: #dc2626;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* Header */
+    header {
+      background: var(--accent);
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+
+    #status {
+      font-size: 12px;
+      opacity: 0.9;
+      background: rgba(0,0,0,0.2);
+      padding: 3px 10px;
+      border-radius: 100px;
+      transition: opacity 0.4s;
+    }
+
+    #status.hidden { opacity: 0; pointer-events: none; }
+    #status.error { background: rgba(220, 38, 38, 0.5); }
+
+    /* Nav */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      padding: 0 20px;
+      overflow-x: auto;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 13px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    nav button:hover { color: var(--text); }
+    nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Main */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    /* Game accordion */
+    .game-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s;
+    }
+
+    .game-header:hover { background: #fafafa; }
+
+    .game-title { flex: 1; min-width: 0; }
+    .game-name { font-weight: 600; font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .game-date { font-size: 12px; color: var(--muted); margin-top: 1px; display: block; }
+
+    .game-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .game-pot { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    .chevron { font-size: 11px; color: var(--muted); transition: transform 0.2s; display: inline-block; }
+    .chevron.open { transform: rotate(180deg); }
+
+    .game-body {
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+    .game-body.open { display: block; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+    .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg); }
+
+    .btn-danger { background: #fef2f2; color: var(--negative); border-color: #fecaca; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-ghost { background: none; border-color: transparent; color: var(--muted); padding: 4px 6px; }
+    .btn-ghost:hover { color: var(--negative); background: #fef2f2; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      text-align: left;
+      padding: 9px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #fafafa; }
+
+    .pos { color: var(--positive); font-weight: 600; }
+    .neg { color: var(--negative); font-weight: 600; }
+    .zero { color: var(--muted); }
+
+    /* Form */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .form-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+    label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="number"] {
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--text);
+      background: white;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
+    }
+
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    /* Player rows */
+    .players-section { margin-bottom: 20px; }
+
+    .players-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .players-label { font-size: 13px; font-weight: 600; }
+
+    .player-cols-header {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 1.2fr 80px 28px;
+      gap: 8px;
+      padding: 0 2px;
+      margin-bottom: 6px;
+    }
+
+    .player-cols-header span {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .player-row {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr 1.2fr 80px 28px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+
+    .player-net-display {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: right;
+      padding-right: 4px;
+    }
+
+    .form-actions { display: flex; gap: 10px; padding-top: 4px; }
+
+    /* Settle up */
+    .settlement-list { }
+
+    .txn-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .txn-row:last-child { border-bottom: none; }
+
+    .txn-from { font-weight: 600; }
+    .txn-arrow { color: var(--muted); font-size: 13px; }
+    .txn-to { font-weight: 600; color: var(--accent); }
+    .txn-amount { margin-left: auto; font-size: 16px; font-weight: 700; color: var(--accent); }
+
+    /* Section heading */
+    .section-heading {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 24px 0 10px;
+    }
+
+    .section-heading:first-child { margin-top: 0; }
+
+    /* Rank badge */
+    .rank { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--bg); color: var(--muted); }
+    .rank-1 { background: #fef3c7; color: #92400e; }
+    .rank-2 { background: #f1f5f9; color: #334155; }
+    .rank-3 { background: #fff7ed; color: #9a3412; }
+
+    /* Win rate pill */
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .pill-green { background: #dcfce7; color: #166534; }
+    .pill-yellow { background: #fef9c3; color: #854d0e; }
+    .pill-red { background: #fee2e2; color: #991b1b; }
+    .pill-gray { background: var(--bg); color: var(--muted); }
+
+    /* Matrix */
+    .matrix-wrap { overflow-x: auto; }
+    .matrix-wrap th, .matrix-wrap td { white-space: nowrap; }
+
+    /* Empty state */
+    .empty {
+      padding: 56px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty p { font-size: 15px; margin-bottom: 6px; color: var(--text); }
+    .empty span { font-size: 13px; }
+
+    @media (max-width: 560px) {
+      main { padding: 16px 14px; }
+      .form-row { grid-template-columns: 1fr; }
+      .player-cols-header,
+      .player-row { grid-template-columns: 1.6fr 1fr 1fr 70px 26px; gap: 6px; }
+      .game-pot { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Poker Tracker</h1>
+  <span id="status" class="hidden"></span>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('games')">Games</button>
+  <button id="nav-add-btn" onclick="switchTab('add')">Add Game</button>
+  <button onclick="switchTab('summary')">Player Summary</button>
+  <button onclick="switchTab('settle')">Settle Up</button>
+</nav>
+
+<main id="main"></main>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let games = [];
+let currentTab = 'games';
+let editingGame = null;
+let openAccordions = new Set();
+let statusTimer = null;
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function inr(amount) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+}
+
+function fmtDate(str) {
+  if (!str) return '';
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric'
+  });
+}
+
+function netCls(n) {
+  return n > 0 ? 'pos' : n < 0 ? 'neg' : 'zero';
+}
+
+function netFmt(n) {
+  return (n > 0 ? '+' : '') + inr(n);
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ─── Status indicator ─────────────────────────────────────────────────────────
+function showStatus(msg, isError = false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = isError ? 'error' : '';
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => { el.className = 'hidden'; }, 2200);
+}
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function loadGames() {
+  showStatus('Loading...');
+  games = await api('GET', '/api/games');
+  showStatus('Ready');
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  if (tab !== 'add') editingGame = null;
+
+  const tabs = ['games', 'add', 'summary', 'settle'];
+  document.querySelectorAll('nav button').forEach((btn, i) => {
+    btn.classList.toggle('active', tabs[i] === tab);
+  });
+
+  const addBtn = document.getElementById('nav-add-btn');
+  if (addBtn) addBtn.textContent = editingGame ? 'Edit Game' : 'Add Game';
+
+  render();
+}
+
+function render() {
+  const main = document.getElementById('main');
+  if (currentTab === 'games')   main.innerHTML = renderGames();
+  else if (currentTab === 'add')     main.innerHTML = renderForm();
+  else if (currentTab === 'summary') main.innerHTML = renderSummary();
+  else if (currentTab === 'settle')  main.innerHTML = renderSettle();
+
+  if (currentTab === 'add') initFormListeners();
+}
+
+// ─── GAMES TAB ────────────────────────────────────────────────────────────────
+function renderGames() {
+  if (!games.length) {
+    return `<div class="empty"><p>No games yet</p><span>Click "Add Game" to record your first session</span></div>`;
+  }
+
+  return games.map(game => {
+    const pot = game.players.reduce((s, p) => s + (p.buyIn || 0), 0);
+    const isOpen = openAccordions.has(game.id);
+    const playerCount = game.players.length;
+
+    const rows = game.players.map(p => {
+      const net = (p.cashOut || 0) - (p.buyIn || 0);
+      return `<tr>
+        <td>${esc(p.name)}</td>
+        <td>${inr(p.buyIn)}</td>
+        <td>${inr(p.cashOut)}</td>
+        <td class="${netCls(net)}">${netFmt(net)}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="card">
+      <div class="game-header" onclick="toggleAccordion('${game.id}')">
+        <div class="game-title">
+          <span class="game-name">${esc(game.name)}</span>
+          <span class="game-date">${fmtDate(game.date)} &middot; ${playerCount} player${playerCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="game-actions">
+          <span class="game-pot">Pot ${inr(pot)}</span>
+          <button class="btn btn-secondary btn-sm" onclick="startEdit('${game.id}', event)">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('${game.id}', event)">Delete</button>
+          <span class="chevron ${isOpen ? 'open' : ''}">&#9660;</span>
+        </div>
+      </div>
+      <div class="game-body ${isOpen ? 'open' : ''}">
+        <table>
+          <thead><tr><th>Player</th><th>Buy-in</th><th>Cash-out</th><th>Net</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleAccordion(id) {
+  if (openAccordions.has(id)) openAccordions.delete(id);
+  else openAccordions.add(id);
+  render();
+}
+
+async function confirmDelete(id, e) {
+  e.stopPropagation();
+  const game = games.find(g => g.id === id);
+  if (!confirm(`Delete "${game?.name}"? This cannot be undone.`)) return;
+  showStatus('Deleting...');
+  try {
+    await api('DELETE', `/api/games/${id}`);
+    games = games.filter(g => g.id !== id);
+    openAccordions.delete(id);
+    showStatus('Game deleted');
+    render();
+  } catch (err) {
+    showStatus('Delete failed', true);
+  }
+}
+
+function startEdit(id, e) {
+  e.stopPropagation();
+  editingGame = games.find(g => g.id === id);
+  // update nav label before switching
+  const addBtn = document.getElementById('nav-add-btn');
+  if (addBtn) addBtn.textContent = 'Edit Game';
+  currentTab = 'add';
+  document.querySelectorAll('nav button').forEach((btn, i) => {
+    btn.classList.toggle('active', i === 1);
+  });
+  render();
+}
+
+// ─── FORM TAB (Add / Edit) ────────────────────────────────────────────────────
+function renderForm() {
+  const g = editingGame;
+  const name = g ? esc(g.name) : '';
+  const date = g ? g.date : today();
+  const players = g ? g.players : [{ name: '', buyIn: '', cashOut: '' }];
+
+  const playerRowsHtml = players.map((p, i) => playerRowHtml(p, i)).join('');
+
+  return `<div class="form-card">
+    <div class="form-title">${g ? 'Edit Game' : 'Add Game'}</div>
+    <form id="game-form" onsubmit="submitGame(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Game Name</label>
+          <input type="text" id="f-name" value="${name}" placeholder="e.g. Friday Night Poker" required>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="f-date" value="${date}" required>
+        </div>
+      </div>
+
+      <div class="players-section">
+        <div class="players-header">
+          <span class="players-label">Players</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addPlayerRow()">+ Add Player</button>
+        </div>
+        <div class="player-cols-header">
+          <span>Name</span>
+          <span>Buy-in (&#8377;)</span>
+          <span>Cash-out (&#8377;)</span>
+          <span style="text-align:right">Net</span>
+          <span></span>
+        </div>
+        <div id="players-container">${playerRowsHtml}</div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">${g ? 'Update Game' : 'Save Game'}</button>
+        ${g ? `<button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>` : ''}
+      </div>
+    </form>
+  </div>`;
+}
+
+function playerRowHtml(p = {}, idx = 0) {
+  return `<div class="player-row">
+    <input type="text" class="pr-name" placeholder="Player name" value="${esc(p.name || '')}" required oninput="updateRowNet(this.closest('.player-row'))">
+    <input type="number" class="pr-buyin" placeholder="0" min="0" value="${p.buyIn !== undefined && p.buyIn !== '' ? p.buyIn : ''}" required oninput="updateRowNet(this.closest('.player-row'))">
+    <input type="number" class="pr-cashout" placeholder="0" min="0" value="${p.cashOut !== undefined && p.cashOut !== '' ? p.cashOut : ''}" required oninput="updateRowNet(this.closest('.player-row'))">
+    <span class="player-net-display zero">&#8377;0</span>
+    <button type="button" class="btn btn-ghost" onclick="removePlayerRow(this)" title="Remove">&#10005;</button>
+  </div>`;
+}
+
+function initFormListeners() {
+  document.querySelectorAll('.player-row').forEach(row => updateRowNet(row));
+}
+
+function updateRowNet(row) {
+  const buyIn = parseFloat(row.querySelector('.pr-buyin').value) || 0;
+  const cashOut = parseFloat(row.querySelector('.pr-cashout').value) || 0;
+  const net = cashOut - buyIn;
+  const span = row.querySelector('.player-net-display');
+  span.textContent = netFmt(net);
+  span.className = 'player-net-display ' + netCls(net);
+}
+
+function addPlayerRow() {
+  const container = document.getElementById('players-container');
+  if (container.querySelectorAll('.player-row').length >= 8) {
+    alert('Maximum 8 players per game.');
+    return;
+  }
+  const div = document.createElement('div');
+  div.innerHTML = playerRowHtml({}, 0);
+  container.appendChild(div.firstElementChild);
+}
+
+function removePlayerRow(btn) {
+  const container = document.getElementById('players-container');
+  if (container.querySelectorAll('.player-row').length <= 1) return;
+  btn.closest('.player-row').remove();
+}
+
+function cancelEdit() {
+  editingGame = null;
+  switchTab('games');
+}
+
+async function submitGame(e) {
+  e.preventDefault();
+
+  const name = document.getElementById('f-name').value.trim();
+  const date = document.getElementById('f-date').value;
+
+  const players = Array.from(document.querySelectorAll('.player-row')).map(row => ({
+    name: row.querySelector('.pr-name').value.trim(),
+    buyIn: parseFloat(row.querySelector('.pr-buyin').value) || 0,
+    cashOut: parseFloat(row.querySelector('.pr-cashout').value) || 0
+  })).filter(p => p.name);
+
+  if (!players.length) { alert('Add at least one player.'); return; }
+
+  const payload = { name, date, players };
+  showStatus('Saving...');
+
+  try {
+    if (editingGame) {
+      const updated = await api('PUT', `/api/games/${editingGame.id}`, payload);
+      const idx = games.findIndex(g => g.id === editingGame.id);
+      games[idx] = updated;
+      showStatus('Game updated');
+    } else {
+      const created = await api('POST', '/api/games', payload);
+      games.unshift(created);
+      showStatus('Game saved');
+    }
+    editingGame = null;
+    switchTab('games');
+  } catch (err) {
+    showStatus('Save failed', true);
+  }
+}
+
+// ─── PLAYER SUMMARY TAB ───────────────────────────────────────────────────────
+function renderSummary() {
+  if (!games.length) {
+    return `<div class="empty"><p>No games yet</p></div>`;
+  }
+
+  // Aggregate stats per player
+  const map = {};
+  games.forEach(game => {
+    game.players.forEach(p => {
+      if (!map[p.name]) map[p.name] = { name: p.name, totalNet: 0, wins: 0, played: 0 };
+      const net = (p.cashOut || 0) - (p.buyIn || 0);
+      map[p.name].totalNet += net;
+      map[p.name].played += 1;
+      if (net > 0) map[p.name].wins += 1;
+    });
+  });
+
+  const players = Object.values(map).sort((a, b) => b.totalNet - a.totalNet);
+
+  // Leaderboard
+  const leaderRows = players.map((p, i) => {
+    const rank = i + 1;
+    const wr = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
+    const wrCls = wr >= 60 ? 'pill-green' : wr >= 40 ? 'pill-yellow' : 'pill-red';
+    const rankCls = rank <= 3 ? `rank-${rank}` : '';
+    return `<tr>
+      <td><div class="rank ${rankCls}">${rank}</div></td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td class="${netCls(p.totalNet)}">${netFmt(p.totalNet)}</td>
+      <td>${p.played}</td>
+      <td>${p.wins}</td>
+      <td><span class="pill ${wrCls}">${wr}%</span></td>
+    </tr>`;
+  }).join('');
+
+  // Matrix — games sorted oldest first
+  const sortedGames = [...games].sort((a, b) => a.date.localeCompare(b.date));
+
+  const matrixCols = sortedGames.map(g => {
+    const label = g.name.length > 14 ? g.name.slice(0, 13) + '\u2026' : g.name;
+    return `<th title="${esc(g.name)} (${fmtDate(g.date)})">${esc(label)}</th>`;
+  }).join('');
+
+  const matrixRows = players.map(p => {
+    const cells = sortedGames.map(game => {
+      const pr = game.players.find(pl => pl.name === p.name);
+      if (!pr) return `<td style="color:var(--muted)">—</td>`;
+      const net = (pr.cashOut || 0) - (pr.buyIn || 0);
+      return `<td class="${netCls(net)}">${netFmt(net)}</td>`;
+    }).join('');
+    return `<tr><td><strong>${esc(p.name)}</strong></td>${cells}</tr>`;
+  }).join('');
+
+  return `
+    <div class="section-heading">Leaderboard</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Total Net</th><th>Games</th><th>Wins</th><th>Win Rate</th></tr></thead>
+        <tbody>${leaderRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section-heading">Results Matrix</div>
+    <div class="card matrix-wrap">
+      <table>
+        <thead><tr><th>Player</th>${matrixCols}</tr></thead>
+        <tbody>${matrixRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ─── SETTLE UP TAB ────────────────────────────────────────────────────────────
+function renderSettle() {
+  if (!games.length) {
+    return `<div class="empty"><p>No games yet</p></div>`;
+  }
+
+  // Aggregate net per player across all games
+  const netMap = {};
+  games.forEach(game => {
+    game.players.forEach(p => {
+      const net = (p.cashOut || 0) - (p.buyIn || 0);
+      netMap[p.name] = (netMap[p.name] || 0) + net;
+    });
+  });
+
+  const transactions = minimizeDebts(netMap);
+
+  // Net positions table
+  const positions = Object.entries(netMap).sort((a, b) => b[1] - a[1]);
+  const posRows = positions.map(([name, net]) => {
+    const badge = net > 0
+      ? `<span class="pill pill-green">Owed money</span>`
+      : net < 0
+        ? `<span class="pill pill-red">Owes money</span>`
+        : `<span class="pill pill-gray">Settled</span>`;
+    return `<tr>
+      <td><strong>${esc(name)}</strong></td>
+      <td class="${netCls(net)}">${netFmt(net)}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+
+  let txnHtml;
+  if (!transactions.length) {
+    txnHtml = `<div class="empty"><p>Everyone is settled up!</p></div>`;
+  } else {
+    txnHtml = `<div class="settlement-list">` + transactions.map(t => `
+      <div class="txn-row">
+        <span class="txn-from">${esc(t.from)}</span>
+        <span class="txn-arrow">&#8594;</span>
+        <span class="txn-to">${esc(t.to)}</span>
+        <span class="txn-amount">${inr(t.amount)}</span>
+      </div>
+    `).join('') + `</div>`;
+  }
+
+  return `
+    <div class="section-heading">Net Positions</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Player</th><th>Net (All Games)</th><th>Status</th></tr></thead>
+        <tbody>${posRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section-heading">Transactions &mdash; ${transactions.length} payment${transactions.length !== 1 ? 's' : ''}</div>
+    <div class="card">${txnHtml}</div>
+  `;
+}
+
+// Greedy debt-minimization: produces at most (n-1) transactions
+function minimizeDebts(netMap) {
+  const EPS = 0.5;
+  const credits = [];
+  const debts = [];
+
+  for (const [name, amount] of Object.entries(netMap)) {
+    if (amount > EPS)  credits.push({ name, amount: amount });
+    else if (amount < -EPS) debts.push({ name, amount: -amount });
+  }
+
+  // Sort largest first so we drain big balances first
+  credits.sort((a, b) => b.amount - a.amount);
+  debts.sort((a, b) => b.amount - a.amount);
+
+  const txns = [];
+  let c = 0, d = 0;
+
+  while (c < credits.length && d < debts.length) {
+    const amount = Math.min(credits[c].amount, debts[d].amount);
+    if (amount > EPS) {
+      txns.push({ from: debts[d].name, to: credits[c].name, amount: Math.round(amount) });
+    }
+    credits[c].amount -= amount;
+    debts[d].amount -= amount;
+    if (credits[c].amount <= EPS) c++;
+    if (debts[d].amount <= EPS) d++;
+  }
+
+  return txns;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await loadGames();
+  } catch (err) {
+    showStatus('Could not connect to server', true);
+  }
+  render();
+})();
+</script>
+</body>
+</html>
