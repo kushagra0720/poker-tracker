@@ -709,7 +709,7 @@ function renderForm() {
   const g = editingGame;
   const name = g ? esc(g.name) : '';
   const date = g ? g.date : today();
-  const players = g ? g.players : [{ name: '', buyIn: '', cashOut: '' }];
+  const players = g ? g.players : (savedPlayers.length ? [] : [{ name: '', buyIn: '', cashOut: '' }]);
 
   const playerRowsHtml = players.map((p, i) => playerRowHtml(p, i)).join('');
 
