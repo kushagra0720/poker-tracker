@@ -197,6 +197,7 @@
 
     tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: #fafafa; }
+    tfoot td { border-top: 1px solid var(--border); background: #fafafa; }
 
     .pos { color: var(--positive); font-weight: 600; }
     .neg { color: var(--negative); font-weight: 600; }
@@ -689,6 +690,12 @@ function renderGames() {
         <table>
           <thead><tr><th>Player</th><th>Buy-in</th><th>Cash-out</th><th>Net</th></tr></thead>
           <tbody>${rows}</tbody>
+          <tfoot><tr>
+            <td style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted)">Total</td>
+            <td style="font-weight:600">${inr(pot)}</td>
+            <td style="font-weight:600">${inr(payout)}</td>
+            <td class="${netCls(payout - pot)}" style="font-weight:600">${netFmt(payout - pot)}</td>
+          </tr></tfoot>
         </table>
       </div>
     </div>`;
