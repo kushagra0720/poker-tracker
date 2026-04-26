@@ -7,12 +7,16 @@ const DB_PATH = path.join(__dirname, 'db.json');
 const PORT = process.env.PORT || 3000;
 const USE_KV = Boolean(process.env.KV_REST_API_URL);
 
+let kv;
+if (USE_KV) {
+  kv = require('@vercel/kv').kv;
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 async function readDB() {
   if (USE_KV) {
-    const { kv } = require('@vercel/kv');
     const [games, players] = await Promise.all([kv.get('games'), kv.get('players')]);
     return { games: games || [], players: players || [] };
   }
@@ -28,7 +32,6 @@ async function readDB() {
 
 async function writeDB(data) {
   if (USE_KV) {
-    const { kv } = require('@vercel/kv');
     await Promise.all([
       kv.set('games', data.games),
       kv.set('players', data.players || [])
@@ -58,7 +61,7 @@ app.post('/api/games', async (req, res) => {
 
 app.put('/api/games/:id', async (req, res) => {
   const db = await readDB();
-  const idx = db.games.findIndex(g => g.id === req.params.id);
+  const idx = db.games.findIndex(g => String(g.id) === String(req.params.id));
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
   db.games[idx] = {
     id: req.params.id,
@@ -72,7 +75,7 @@ app.put('/api/games/:id', async (req, res) => {
 
 app.delete('/api/games/:id', async (req, res) => {
   const db = await readDB();
-  const idx = db.games.findIndex(g => g.id === req.params.id);
+  const idx = db.games.findIndex(g => String(g.id) === String(req.params.id));
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
   db.games.splice(idx, 1);
   await writeDB(db);
@@ -103,6 +106,11 @@ app.delete('/api/players/:name', async (req, res) => {
   db.players = (db.players || []).filter(p => p !== name);
   await writeDB(db);
   res.json(db.players);
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // Local dev only — Vercel uses the exported app, not app.listen()

@@ -513,6 +513,17 @@
 
 <main id="main"></main>
 
+<!-- Game saved dialog -->
+<div id="success-dialog" class="dialog-overlay" style="display:none">
+  <div class="dialog">
+    <div class="dialog-title" id="success-dialog-title">Game Saved</div>
+    <div class="dialog-body" id="success-dialog-body"></div>
+    <div class="dialog-actions">
+      <button class="btn btn-primary" onclick="closeSuccessDialog()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Payout mismatch dialog -->
 <div id="payout-dialog" class="dialog-overlay" style="display:none">
   <div class="dialog">
@@ -915,6 +926,9 @@ async function submitGame(e) {
 
   if (!players.length) { alert('Add at least one player.'); return; }
 
+  const dupGame = games.find(g => g.name.toLowerCase() === name.toLowerCase() && (!editingGame || g.id !== editingGame.id));
+  if (dupGame) { alert(`A game named "${dupGame.name}" already exists. Use a different name.`); return; }
+
   const totalBuyIn = players.reduce((s, p) => s + p.buyIn, 0);
   const totalCashOut = players.reduce((s, p) => s + p.cashOut, 0);
   const diff = Math.abs(totalBuyIn - totalCashOut);
@@ -962,17 +976,28 @@ async function doSaveGame(payload) {
       const updated = await api('PUT', `/api/games/${editingGame.id}`, payload);
       const idx = games.findIndex(g => g.id === editingGame.id);
       games[idx] = updated;
-      showStatus('Game updated');
+      editingGame = null;
+      showSuccessDialog('Game Updated', `"${payload.name}" has been updated successfully.`);
     } else {
       const created = await api('POST', '/api/games', payload);
       games.unshift(created);
-      showStatus('Game saved');
+      editingGame = null;
+      showSuccessDialog('Game Saved', `"${payload.name}" has been saved successfully.`);
     }
-    editingGame = null;
-    switchTab('games');
   } catch (err) {
     showStatus('Save failed', true);
   }
+}
+
+function showSuccessDialog(title, msg) {
+  document.getElementById('success-dialog-title').textContent = title;
+  document.getElementById('success-dialog-body').textContent = msg;
+  document.getElementById('success-dialog').style.display = 'flex';
+}
+
+function closeSuccessDialog() {
+  document.getElementById('success-dialog').style.display = 'none';
+  switchTab('games');
 }
 
 // ─── PLAYER SUMMARY TAB ───────────────────────────────────────────────────────
