@@ -84,6 +84,14 @@
     nav button:hover { color: var(--text); }
     nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
+    /* Player sub-tabs */
+    .player-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
     /* Main */
     main {
       max-width: 860px;
@@ -509,6 +517,7 @@
   <button id="nav-add-btn" onclick="switchTab('add')">Add Game</button>
   <button onclick="switchTab('summary')">Player Summary</button>
   <button onclick="switchTab('settle')">Settle Up</button>
+  <button onclick="switchTab('players')">Players</button>
 </nav>
 
 <main id="main"></main>
@@ -542,6 +551,7 @@ let games = [];
 let savedPlayers = [];
 let currentTab = 'games';
 let editingGame = null;
+let selectedPlayer = null;
 let openAccordions = new Set();
 let statusTimer = null;
 let pendingPayload = null;
@@ -634,7 +644,7 @@ function switchTab(tab) {
   currentTab = tab;
   if (tab !== 'add') editingGame = null;
 
-  const tabs = ['games', 'add', 'summary', 'settle'];
+  const tabs = ['games', 'add', 'summary', 'settle', 'players'];
   document.querySelectorAll('nav button').forEach((btn, i) => {
     btn.classList.toggle('active', tabs[i] === tab);
   });
@@ -651,6 +661,7 @@ function render() {
   else if (currentTab === 'add')     main.innerHTML = renderForm();
   else if (currentTab === 'summary') main.innerHTML = renderSummary();
   else if (currentTab === 'settle')  main.innerHTML = renderSettle();
+  else if (currentTab === 'players') main.innerHTML = renderPlayers();
 
   if (currentTab === 'add') initFormListeners();
 }
@@ -1076,6 +1087,78 @@ function renderSummary() {
       <table>
         <thead><tr><th>Player</th>${matrixCols}</tr></thead>
         <tbody>${matrixRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ─── PLAYERS TAB ──────────────────────────────────────────────────────────────
+function selectPlayer(name) {
+  selectedPlayer = name;
+  render();
+}
+
+function renderPlayers() {
+  if (!games.length) {
+    return `<div class="empty"><p>No games yet</p><span>Add a game to see per-player results</span></div>`;
+  }
+
+  const names = [...new Set(games.flatMap(g => g.players.map(p => p.name)))].sort();
+  if (!names.length) {
+    return `<div class="empty"><p>No players yet</p></div>`;
+  }
+
+  if (!selectedPlayer || !names.includes(selectedPlayer)) selectedPlayer = names[0];
+
+  const tabs = names.map(name => {
+    const cls = name === selectedPlayer ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    return `<button class="${cls}" onclick="selectPlayer('${esc(name).replace(/'/g, "\\'")}')">${esc(name)}</button>`;
+  }).join('');
+
+  // Games the selected player took part in — oldest first
+  const playerGames = [...games]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(game => {
+      const pr = game.players.find(p => p.name === selectedPlayer);
+      if (!pr) return null;
+      return {
+        name: game.name,
+        date: game.date,
+        buyIn: pr.buyIn || 0,
+        cashOut: pr.cashOut || 0,
+        net: (pr.cashOut || 0) - (pr.buyIn || 0)
+      };
+    })
+    .filter(Boolean);
+
+  const total = playerGames.reduce((s, g) => s + g.net, 0);
+
+  const rows = playerGames.map(g => `
+    <tr>
+      <td><strong>${esc(g.name)}</strong></td>
+      <td>${fmtDate(g.date)}</td>
+      <td>${inr(g.buyIn)}</td>
+      <td>${inr(g.cashOut)}</td>
+      <td class="${netCls(g.net)}">${netFmt(g.net)}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="player-tabs">${tabs}</div>
+
+    <div class="section-heading">
+      <span>${esc(selectedPlayer)} &mdash; ${playerGames.length} game${playerGames.length !== 1 ? 's' : ''}</span>
+      <span class="${netCls(total)}" style="font-size:1.1rem;font-weight:700">${netFmt(total)}</span>
+    </div>
+    <div class="card" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <table>
+        <thead><tr><th>Game</th><th>Date</th><th>Buy-in</th><th>Cash-out</th><th>Net</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4"><strong>Total</strong></td>
+            <td class="${netCls(total)}"><strong>${netFmt(total)}</strong></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   `;

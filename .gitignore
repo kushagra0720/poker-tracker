@@ -3,3 +3,4 @@ db.json
 .env
 .env.local
 .vercel
+.env*.local
