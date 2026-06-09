@@ -1136,7 +1136,6 @@ function renderPlayers() {
   const rows = playerGames.map(g => `
     <tr>
       <td><strong>${esc(g.name)}</strong></td>
-      <td>${fmtDate(g.date)}</td>
       <td>${inr(g.buyIn)}</td>
       <td>${inr(g.cashOut)}</td>
       <td class="${netCls(g.net)}">${netFmt(g.net)}</td>
@@ -1151,11 +1150,11 @@ function renderPlayers() {
     </div>
     <div class="card" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
       <table>
-        <thead><tr><th>Game</th><th>Date</th><th>Buy-in</th><th>Cash-out</th><th>Net</th></tr></thead>
+        <thead><tr><th>Game</th><th>Buy-in</th><th>Cash-out</th><th>Net</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot>
           <tr>
-            <td colspan="4"><strong>Total</strong></td>
+            <td colspan="3"><strong>Total</strong></td>
             <td class="${netCls(total)}"><strong>${netFmt(total)}</strong></td>
           </tr>
         </tfoot>
